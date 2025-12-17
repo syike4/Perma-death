@@ -1,22 +1,88 @@
---Character
-local p = game.Players.LocalPlayer
-local c = p.Character
+-- LOCAL SCRIPT
+-- Place this in StarterPlayer > StarterCharacterScripts
 
---Fake Character
-local m = Instance.new("Model",c)
-m.Name = "Fake Character"
-local t = Instance.new("Part",m)
-t.Name = "Torso"
-t.Position = c.HumanoidRootPart.Position
-local h = Instance.new("Part",m)
-h.Name = "Head"
-h.Position = c.HumanoidRootPart.Position
-local hum = Instance.new("Humanoid",m)
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = script.Parent
 
---Bypass
-p.Character = m
-wait(3)
-p.Character = c
-wait(3)
+-- Wait for humanoid
+local humanoid = character:WaitForChild("Humanoid")
 
-p.Character.Humanoid.Health = 0
+-- Variable to track if perma-death should activate
+local shouldActivatePermaDeath = false
+
+-- Function to activate perma-death
+local function activatePermaDeath()
+    -- Bypass method: Temporarily set character to nil
+    local originalCharacter = player.Character
+    player.Character = nil
+    
+    -- Wait briefly
+    task.wait(0.1)
+    
+    -- Restore character reference
+    player.Character = originalCharacter
+    
+    -- Wait a moment
+    task.wait(0.1)
+    
+    -- Kill the character to trigger perma-death
+    if originalCharacter and originalCharacter:FindFirstChild("Humanoid") then
+        originalCharacter.Humanoid.Health = 0
+    end
+    
+    -- Prevent respawning by continuously destroying new characters
+    player.CharacterAdded:Connect(function(newChar)
+        task.wait()
+        newChar:Destroy()
+        
+        -- Show perma-death message
+        local gui = player:FindFirstChild("PlayerGui")
+        if gui and not gui:FindFirstChild("PermaDeathGui") then
+            local screenGui = Instance.new("ScreenGui")
+            screenGui.Name = "PermaDeathGui"
+            screenGui.Parent = gui
+            screenGui.ResetOnSpawn = false
+            
+            local frame = Instance.new("Frame")
+            frame.Size = UDim2.new(0, 500, 0, 150)
+            frame.Position = UDim2.new(0.5, -250, 0.5, -75)
+            frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            frame.BorderSizePixel = 0
+            frame.Parent = screenGui
+            
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 10)
+            corner.Parent = frame
+            
+            local titleLabel = Instance.new("TextLabel")
+            titleLabel.Size = UDim2.new(1, 0, 0.5, 0)
+            titleLabel.Position = UDim2.new(0, 0, 0, 10)
+            titleLabel.BackgroundTransparency = 1
+            titleLabel.Text = "⚠️ PERMA-DEATH ACTIVE ⚠️"
+            titleLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+            titleLabel.TextSize = 28
+            titleLabel.Font = Enum.Font.SourceSansBold
+            titleLabel.Parent = frame
+            
+            local descLabel = Instance.new("TextLabel")
+            descLabel.Size = UDim2.new(1, -20, 0.4, 0)
+            descLabel.Position = UDim2.new(0, 10, 0.5, 0)
+            descLabel.BackgroundTransparency = 1
+            descLabel.Text = "You cannot respawn!\nRejoin the game to play again."
+            descLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            descLabel.TextSize = 18
+            descLabel.Font = Enum.Font.SourceSans
+            descLabel.TextWrapped = true
+            descLabel.Parent = frame
+        end
+    end)
+end
+
+-- Detect when player dies/resets
+humanoid.Died:Connect(function()
+    if not shouldActivatePermaDeath then
+        shouldActivatePermaDeath = true
+        activatePermaDeath()
+    end
+end)
