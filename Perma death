@@ -1,59 +1,61 @@
--- Perma-Death Script
--- Place this in StarterPlayer > StarterCharacterScripts
+-- SERVER SCRIPT
+-- Place this in ServerScriptService
 
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Variable to track if perma-death is active
-local permaDeathActive = false
+-- Table to track players who have perma-death active
+local permaDeathPlayers = {}
 
--- Function to enable perma-death
-local function enablePermaDeath()
-    permaDeathActive = true
+-- Function to handle perma-death for a player
+local function setupPermaDeath(player)
     player.CharacterAdded:Connect(function(character)
-        if permaDeathActive then
-            -- Prevent respawn by destroying the character immediately
-            character:Destroy()
-            
-            -- Show a message
-            local screenGui = Instance.new("ScreenGui")
-            screenGui.Parent = player:WaitForChild("PlayerGui")
-            screenGui.ResetOnSpawn = false
-            
-            local textLabel = Instance.new("TextLabel")
-            textLabel.Size = UDim2.new(0, 400, 0, 100)
-            textLabel.Position = UDim2.new(0.5, -200, 0.5, -50)
-            textLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-            textLabel.BackgroundTransparency = 0.5
-            textLabel.Text = "PERMA-DEATH ACTIVE\nYou cannot respawn!"
-            textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-            textLabel.TextSize = 24
-            textLabel.Font = Enum.Font.SourceSansBold
-            textLabel.Parent = screenGui
-        end
-    end)
-end
-
--- Detect when player resets (character dies)
-player.CharacterAdded:Connect(function(character)
-    local humanoid = character:WaitForChild("Humanoid")
-    
-    -- When character dies, activate perma-death
-    humanoid.Died:Connect(function()
-        if not permaDeathActive then
-            enablePermaDeath()
-        end
-    end)
-end)
-
--- If character already exists when script loads
-if player.Character then
-    local humanoid = player.Character:FindFirstChild("Humanoid")
-    if humanoid then
+        local humanoid = character:WaitForChild("Humanoid")
+        
+        -- When character dies, mark player for perma-death
         humanoid.Died:Connect(function()
-            if not permaDeathActive then
-                enablePermaDeath()
+            if not permaDeathPlayers[player.UserId] then
+                permaDeathPlayers[player.UserId] = true
+                print(player.Name .. " has activated perma-death!")
             end
         end)
-    end
+    end)
+    
+    -- Check if player is in perma-death mode on respawn
+    player.CharacterAdded:Connect(function(character)
+        if permaDeathPlayers[player.UserId] then
+            -- Wait a frame then destroy character
+            task.wait()
+            character:Destroy()
+            
+            -- Set respawn delay to prevent constant respawn attempts
+            player.RespawnTime = 1e9 -- Very large number
+            
+            -- Fire event to client to show message
+            local showMessage = ReplicatedStorage:FindFirstChild("ShowPermaDeathMessage")
+            if showMessage then
+                showMessage:FireClient(player)
+            end
+        end
+    end)
 end
+
+-- Setup for all current and future players
+Players.PlayerAdded:Connect(function(player)
+    setupPermaDeath(player)
+end)
+
+-- Handle existing players
+for _, player in pairs(Players:GetPlayers()) do
+    setupPermaDeath(player)
+end
+
+-- Clean up when player leaves
+Players.PlayerRemoving:Connect(function(player)
+    permaDeathPlayers[player.UserId] = nil
+end)
+
+-- Create RemoteEvent for client communication
+local showMessage = Instance.new("RemoteEvent")
+showMessage.Name = "ShowPermaDeathMessage"
+showMessage.Parent = ReplicatedStorage
