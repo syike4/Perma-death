@@ -1,61 +1,22 @@
--- SERVER SCRIPT
--- Place this in ServerScriptService
+--Character
+local p = game.Players.LocalPlayer
+local c = p.Character
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+--Fake Character
+local m = Instance.new("Model",c)
+m.Name = "Fake Character"
+local t = Instance.new("Part",m)
+t.Name = "Torso"
+t.Position = c.HumanoidRootPart.Position
+local h = Instance.new("Part",m)
+h.Name = "Head"
+h.Position = c.HumanoidRootPart.Position
+local hum = Instance.new("Humanoid",m)
 
--- Table to track players who have perma-death active
-local permaDeathPlayers = {}
+--Bypass
+p.Character = m
+wait(3)
+p.Character = c
+wait(3)
 
--- Function to handle perma-death for a player
-local function setupPermaDeath(player)
-    player.CharacterAdded:Connect(function(character)
-        local humanoid = character:WaitForChild("Humanoid")
-        
-        -- When character dies, mark player for perma-death
-        humanoid.Died:Connect(function()
-            if not permaDeathPlayers[player.UserId] then
-                permaDeathPlayers[player.UserId] = true
-                print(player.Name .. " has activated perma-death!")
-            end
-        end)
-    end)
-    
-    -- Check if player is in perma-death mode on respawn
-    player.CharacterAdded:Connect(function(character)
-        if permaDeathPlayers[player.UserId] then
-            -- Wait a frame then destroy character
-            task.wait()
-            character:Destroy()
-            
-            -- Set respawn delay to prevent constant respawn attempts
-            player.RespawnTime = 1e9 -- Very large number
-            
-            -- Fire event to client to show message
-            local showMessage = ReplicatedStorage:FindFirstChild("ShowPermaDeathMessage")
-            if showMessage then
-                showMessage:FireClient(player)
-            end
-        end
-    end)
-end
-
--- Setup for all current and future players
-Players.PlayerAdded:Connect(function(player)
-    setupPermaDeath(player)
-end)
-
--- Handle existing players
-for _, player in pairs(Players:GetPlayers()) do
-    setupPermaDeath(player)
-end
-
--- Clean up when player leaves
-Players.PlayerRemoving:Connect(function(player)
-    permaDeathPlayers[player.UserId] = nil
-end)
-
--- Create RemoteEvent for client communication
-local showMessage = Instance.new("RemoteEvent")
-showMessage.Name = "ShowPermaDeathMessage"
-showMessage.Parent = ReplicatedStorage
+p.Character.Humanoid.Health = 0
