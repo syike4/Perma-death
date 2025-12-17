@@ -1,22 +1,59 @@
---Character
-local p = game.Players.LocalPlayer
-local c = p.Character
+-- Perma-Death Script
+-- Place this in StarterPlayer > StarterCharacterScripts
 
---Fake Character
-local m = Instance.new("Model",c)
-m.Name = "Fake Character"
-local t = Instance.new("Part",m)
-t.Name = "Torso"
-t.Position = c.HumanoidRootPart.Position
-local h = Instance.new("Part",m)
-h.Name = "Head"
-h.Position = c.HumanoidRootPart.Position
-local hum = Instance.new("Humanoid",m)
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 
---Bypass
-p.Character = m
-wait(3)
-p.Character = c
-wait(3)
+-- Variable to track if perma-death is active
+local permaDeathActive = false
 
-p.Character.Humanoid.Health = 0
+-- Function to enable perma-death
+local function enablePermaDeath()
+    permaDeathActive = true
+    player.CharacterAdded:Connect(function(character)
+        if permaDeathActive then
+            -- Prevent respawn by destroying the character immediately
+            character:Destroy()
+            
+            -- Show a message
+            local screenGui = Instance.new("ScreenGui")
+            screenGui.Parent = player:WaitForChild("PlayerGui")
+            screenGui.ResetOnSpawn = false
+            
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Size = UDim2.new(0, 400, 0, 100)
+            textLabel.Position = UDim2.new(0.5, -200, 0.5, -50)
+            textLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            textLabel.BackgroundTransparency = 0.5
+            textLabel.Text = "PERMA-DEATH ACTIVE\nYou cannot respawn!"
+            textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+            textLabel.TextSize = 24
+            textLabel.Font = Enum.Font.SourceSansBold
+            textLabel.Parent = screenGui
+        end
+    end)
+end
+
+-- Detect when player resets (character dies)
+player.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    -- When character dies, activate perma-death
+    humanoid.Died:Connect(function()
+        if not permaDeathActive then
+            enablePermaDeath()
+        end
+    end)
+end)
+
+-- If character already exists when script loads
+if player.Character then
+    local humanoid = player.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.Died:Connect(function()
+            if not permaDeathActive then
+                enablePermaDeath()
+            end
+        end)
+    end
+end
