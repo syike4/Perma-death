@@ -1,0 +1,148 @@
+-- Permadeath Toggle Script
+-- Place this in StarterGui as a LocalScript
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PermadeathToggle"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+-- Create draggable square frame
+local square = Instance.new("Frame")
+square.Name = "DragSquare"
+square.Size = UDim2.new(0, 30, 0, 30)
+square.Position = UDim2.new(0.5, -15, 0.5, -15)
+square.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+square.BackgroundTransparency = 0.7
+square.BorderSizePixel = 0
+square.Parent = screenGui
+
+-- Add rounded corners
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 6)
+corner.Parent = square
+
+-- Create status label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Size = UDim2.new(0, 200, 0, 40)
+statusLabel.Position = UDim2.new(0, 20, 0, 20)
+statusLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+statusLabel.BackgroundTransparency = 0.2
+statusLabel.BorderSizePixel = 0
+statusLabel.Text = "Permadeath: OFF"
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.TextSize = 16
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.Parent = screenGui
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 8)
+statusCorner.Parent = statusLabel
+
+-- Variables
+local permadeathActive = false
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+-- Handle permadeath on character spawn
+local function setupPermadeath(character)
+    if permadeathActive then
+        local humanoid = character:WaitForChild("Humanoid")
+        humanoid.Died:Connect(function()
+            wait(2)
+            player:Kick("PERMADEATH - You have died permanently")
+        end)
+    end
+end
+
+-- Connect to character spawns
+player.CharacterAdded:Connect(setupPermadeath)
+
+-- If character already exists, set it up
+if player.Character then
+    setupPermadeath(player.Character)
+end
+
+-- Toggle permadeath function
+local function togglePermadeath()
+    permadeathActive = not permadeathActive
+    
+    if permadeathActive then
+        square.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        square.BackgroundTransparency = 0.5
+        statusLabel.Text = "Permadeath: ON"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        statusLabel.BorderColor3 = Color3.fromRGB(255, 50, 50)
+        statusLabel.BorderSizePixel = 2
+        
+        -- Apply to current character if exists
+        if player.Character then
+            setupPermadeath(player.Character)
+        end
+        
+        print("PERMADEATH ACTIVATED")
+    else
+        square.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        square.BackgroundTransparency = 0.7
+        statusLabel.Text = "Permadeath: OFF"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        statusLabel.BorderSizePixel = 0
+        
+        print("Permadeath deactivated")
+    end
+end
+
+-- Mouse enter/leave effects
+square.MouseEnter:Connect(function()
+    if not permadeathActive then
+        square.BackgroundTransparency = 0.5
+    end
+end)
+
+square.MouseLeave:Connect(function()
+    if not permadeathActive then
+        square.BackgroundTransparency = 0.7
+    end
+end)
+
+-- Dragging functionality
+square.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = square.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        square.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- Click to toggle
+square.MouseButton1Click:Connect(function()
+    togglePermadeath()
+end)
+
+print("Permadeath Toggle loaded - Click the square to activate")
